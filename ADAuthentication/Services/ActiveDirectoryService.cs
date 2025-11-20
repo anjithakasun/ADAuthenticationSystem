@@ -36,7 +36,7 @@ namespace ADAuthentication.PL.Services
             try
             {
                 // 1. Authenticate
-                using (var entry = new System.DirectoryServices.DirectoryEntry(_lDapPath, domainUser, password))
+                using (var entry = new System.DirectoryServices.DirectoryEntry(_lDapPath, domainUser, password, AuthenticationTypes.Secure | AuthenticationTypes.SecureSocketsLayer))
                 {
                     var nativeObj = entry.NativeObject;
 
@@ -85,6 +85,59 @@ namespace ADAuthentication.PL.Services
                 ? result.Properties[prop][0]?.ToString()
                 : "";
         }
+
+        public ADUserModel GetUserFromAD(string searchUsername)
+        {
+            string domainPath = "LDAP://10.100.10.100:389"; // or LDAPS://10.100.10.100:636
+            string baseDn = "DC=VFPLC,DC=INT";
+
+            string serviceUser = "svc_adlookup@VFPLC.INT";
+            string servicePassword = "YourPassword";
+
+            try
+            {
+                // Use AuthenticationTypes.Secure | SecureSocketsLayer for LDAPS
+                using (var entry = new System.DirectoryServices.DirectoryEntry(domainPath + "/" + baseDn, serviceUser, servicePassword,
+                    AuthenticationTypes.Secure | AuthenticationTypes.SecureSocketsLayer))
+                {
+                    using (var searcher = new DirectorySearcher(entry))
+                    {
+                        searcher.Filter = $"(sAMAccountName={searchUsername})";
+
+                        // Load AD attributes
+                        searcher.PropertiesToLoad.Add("sAMAccountName");
+                        searcher.PropertiesToLoad.Add("givenName");
+                        searcher.PropertiesToLoad.Add("sn");
+                        searcher.PropertiesToLoad.Add("mail");
+                        searcher.PropertiesToLoad.Add("displayName");
+                        searcher.PropertiesToLoad.Add("department");
+                        searcher.PropertiesToLoad.Add("title");
+                        searcher.PropertiesToLoad.Add("telephoneNumber");
+
+                        System.DirectoryServices.SearchResult result = searcher.FindOne();
+                        if (result == null) return null;
+
+                        return new ADUserModel
+                        {
+                            Username = GetProp(result, "sAMAccountName"),
+                            FirstName = GetProp(result, "givenName"),
+                            LastName = GetProp(result, "sn"),
+                            Email = GetProp(result, "mail"),
+                            DisplayName = GetProp(result, "displayName"),
+                            Department = GetProp(result, "department"),
+                            Title = GetProp(result, "title"),
+                            TelephoneNumber = GetProp(result, "telephoneNumber")
+                        };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Optionally, log the exception
+                return null;
+            }
+        }
+
 
         //public bool Authenticate(string username, string password)
         //{
