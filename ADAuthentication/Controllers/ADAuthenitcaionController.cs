@@ -1,4 +1,5 @@
-﻿using ADAuthentication.PL.Services;
+﻿using ADAuthentication.PL.Models;
+using ADAuthentication.PL.Services;
 using Microsoft.AspNetCore.Mvc;
 using System.DirectoryServices.ActiveDirectory;
 
@@ -18,12 +19,18 @@ namespace ADAuthentication.Controllers
 
         [HttpPost]
         [Route("Authentication")]
-        public IActionResult Login(string username, string password)
+        public async Task<IActionResult> Login(string username, string password)
         {
             var user = _ad.AuthenticateAndGetUser(username, password);
+            ApiResponse<ADUserModel> model = new ApiResponse<ADUserModel>();
 
             if (user == null)
-                return Unauthorized("Invalid login");
+            {
+                model.Status = false;
+                model.Message = "Invalid login";
+                model.Data = null;
+                return Unauthorized(model);
+            }
 
             return Ok(user); // send AD attributes to frontend / API consumer
         }       
